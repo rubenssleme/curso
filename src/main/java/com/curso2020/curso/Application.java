@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
  * Ponto de entrada da aplicação Spring Boot.
+ * novo
  */
 @SpringBootApplication
 public class Application {
