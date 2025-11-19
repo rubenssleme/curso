@@ -1,0 +1,18 @@
+# .gitea/workflows/test-host-resolve.yml
+name: Test Host Resolve
+on:
+  push:
+    branches: [ main ]
+jobs:
+  test:
+    runs-on: [docker, linux]
+    container:
+      image: ghcr.io/catthehacker/ubuntu:act-latest
+    steps:
+      - name: ping giteahome
+        run: |
+          ping -c1 giteahome.local || true
+          echo "Try curl by name"
+          curl -sS -I http://giteahome.local:3000/ || true
+          echo "Try curl by IP"
+          curl -sS -I http://192.168.3.25:3000/ || true
