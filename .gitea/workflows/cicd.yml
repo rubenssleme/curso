@@ -1,16 +1,18 @@
 name: Java CI  with Maven
-on:
+'on':
   push:
-    branches: [ main ]
-
+    branches:
+      - main
 jobs:
   build:
-    runs-on: [docker, java]
+    runs-on:
+      - docker
+      - java
     container:
-      image: maven:3.9.6-eclipse-temurin-17
+      image: 'maven:3.9.6-eclipse-temurin-17'
     env:
-      REPO_URL: "http://192.168.3.25/rubenss.leme/curso.git"
-      WORKDIR: "/workspace/rubenss.leme/curso"
+      REPO_URL: 'http://192.168.3.25/rubenss.leme/curso.git'
+      WORKDIR: /workspace/rubenss.leme/curso
     steps:
       - name: Prepare environment & install git/rsync
         run: |
@@ -22,16 +24,22 @@ jobs:
           apt-get install -y git rsync
           git --version
           rsync --version
-
-      - name: Clone or refresh repository (safe for mounts) (supports private via GITEA_TOKEN)
+      - name: >-
+          Clone or refresh repository (safe for mounts) (supports private via
+          GITEA_TOKEN)
         env:
-          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
-        run: |
+          GITEA_TOKEN: '${{ secrets.GITEA_TOKEN }}'
+        run: >
           set -eux
+
           TARGET="${WORKDIR}"
+
           TMPDIR=""
+
           echo "TARGET=${TARGET}"
+
           # If a git repo already exists in target -> fetch & reset
+
           if [ -d "${TARGET}/.git" ]; then
             echo "Git repo exists in target -> fetching and resetting to origin/main"
             git -C "${TARGET}" fetch --all --prune
@@ -41,7 +49,10 @@ jobs:
             exit 0
           fi
 
-          # If target exists but is not a git repo (likely a mount with files) -> clone to tmp and rsync
+
+          # If target exists but is not a git repo (likely a mount with files)
+          -> clone to tmp and rsync
+
           if [ -e "${TARGET}" ] && [ ! -d "${TARGET}/.git" ]; then
             echo "Target exists but is not a git repo. Will clone into tempdir and rsync over target."
             TMPDIR="$(mktemp -d)"
@@ -60,23 +71,71 @@ jobs:
             exit 0
           fi
 
+
           # If target doesn't exist -> safe normal clone
+
           echo "Target does not exist; performing normal clone."
+
           mkdir -p "$(dirname "${TARGET}")"
+
           if [ -n "${GITEA_TOKEN:-}" ]; then
             git clone "http://rubenss.leme:${GITEA_TOKEN}192.168.3.25/rubenss.leme/curso.git" "${TMPDIR}"
           else
             git clone "${REPO_URL}" "${TARGET}"
           fi
-
       - name: Build (maven)
         run: |
           set -eux
           cd "${WORKDIR}"
           mvn -B -DskipTests clean package
-
       - name: Run tests
         run: |
           set -eux
           cd "${WORKDIR}"
           mvn -B test
+  deploy:
+    needs: build
+    runs-on:
+      - self-hosted
+      - linux
+      - docker
+    container:
+      image: 'alpine:3.18'
+    if: '${{ success() }}'
+    steps:
+      - name: Install ssh and rsync
+        run: |
+          apk add --no-cache openssh rsync bash curl
+      - name: Prepare artifact
+        run: |
+          mkdir -p /tmp/deploy
+          # ajuste este caminho para onde seu job build gera o jar
+          cp ./target/*.jar /tmp/deploy/app.jar
+          ls -l /tmp/deploy
+      - name: Copy artifact to runnerBackend (rsync)
+        env:
+          SSH_PRIVATE_KEY: '${{ secrets.SSH_PRIVATE_KEY }}'
+        run: >
+          mkdir -p ~/.ssh
+
+          printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+
+          chmod 600 ~/.ssh/id_rsa
+
+          ssh-keyscan -H 192.168.3.95 >> ~/.ssh/known_hosts
+
+          # rsync the jar to a temp path on the target host
+
+          rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
+          /tmp/deploy/app.jar deployuser@192.168.3.95:/tmp/app_to_deploy.jar
+      - name: Trigger remote deploy script
+        env:
+          SSH_PRIVATE_KEY: '${{ secrets.SSH_PRIVATE_KEY }}'
+        run: >
+          printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+
+          chmod 600 ~/.ssh/id_rsa
+
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa
+          deployuser@192.168.3.95 "bash /home/deploy/apps/curso/deploy.sh
+          /tmp/app_to_deploy.jar"
