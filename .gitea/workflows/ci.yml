@@ -1,4 +1,4 @@
-name: Java CI
+name: Java CI (git-clone)
 on:
   push:
     branches: [ main ]
@@ -8,10 +8,38 @@ jobs:
     runs-on: [docker, java]
     container:
       image: maven:3.9.6-eclipse-temurin-17
+    env:
+      REPO_URL: "http://giteahome.local/rubenss.leme/curso.git"
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install -y git
+
+      - name: Clone repository (supports private via GITEA_TOKEN)
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+        run: |
+          set -eux
+          # if GITEA_TOKEN is set, use it to clone (private repo)
+          if [ -n "${GITEA_TOKEN:-}" ]; then
+            # URL-encode token if needed; here we assume token has no special chars.
+            git clone "http://:${GITEA_TOKEN}@giteahome.local/rubenss.leme/curso.git" /workspace
+          else
+            git clone "${REPO_URL}" /workspace
+          fi
+          cd /workspace
+          # try to checkout the ref that triggered the workflow
+          if [ -n "${GITEA_REF:-}" ]; then
+            echo "GITEA_REF=${GITEA_REF}"
+          fi
+
       - name: Build (maven)
-        run: mvn -B -DskipTests clean package
+        run: |
+          cd /workspace
+          mvn -B -DskipTests clean package
+
       - name: Run tests
-        run: mvn -B test      
+        run: |
+          cd /workspace
+          mvn -B test
