@@ -6,12 +6,12 @@ on:
 jobs:
   test:
     runs-on: [docker, linux]
+    container:
+      image: node:20-bullseye   # imagem oficial Node com node instalado
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Runner info and Docker version
+      - name: Runner info
         run: |
-          echo "Hello from runner: $(hostname)"
-          echo "Runner labels: $GITEA_RUNNER_LABELS"
-          docker --version || true
+          node --version
           uname -a
