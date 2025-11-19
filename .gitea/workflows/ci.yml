@@ -1,4 +1,4 @@
-name: Java CI (git-clone robust safe)
+name: Java CI (git-clone)
 on:
   push:
     branches: [ main ]
