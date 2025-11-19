@@ -1,4 +1,4 @@
-name: Java CI (git-clone)
+name: Java CI
 on:
   push:
     branches: [ main ]
