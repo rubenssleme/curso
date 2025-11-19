@@ -47,7 +47,7 @@ jobs:
             TMPDIR="$(mktemp -d)"
             echo "Cloning into tempdir ${TMPDIR}..."
             if [ -n "${GITEA_TOKEN:-}" ]; then
-              git clone "http://rubenss.leme:${GITEA_TOKEN}@giteahome.local/rubenss.leme/curso.git" "${TMPDIR}"
+              git clone "http://rubenss.leme:${GITEA_TOKEN}@192.168.3.25/rubenss.leme/curso.git" "${TMPDIR}"
             else
               git clone "${REPO_URL}" "${TMPDIR}"
             fi
@@ -64,7 +64,7 @@ jobs:
           echo "Target does not exist; performing normal clone."
           mkdir -p "$(dirname "${TARGET}")"
           if [ -n "${GITEA_TOKEN:-}" ]; then
-            git clone "http://rubenss.leme:${GITEA_TOKEN}@giteahome.local/rubenss.leme/curso.git" "${TARGET}"
+            git clone "http://rubenss.leme:${GITEA_TOKEN}192.168.3.25/rubenss.leme/curso.git" "${TMPDIR}"
           else
             git clone "${REPO_URL}" "${TARGET}"
           fi
