@@ -1,0 +1,17 @@
+name: CI test curso
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: [docker, linux]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Runner info and Docker version
+        run: |
+          echo "Hello from runner: $(hostname)"
+          echo "Runner labels: $GITEA_RUNNER_LABELS"
+          docker --version || true
+          uname -a
