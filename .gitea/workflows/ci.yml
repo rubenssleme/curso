@@ -1,4 +1,4 @@
-name: Java CI (git-clone robust)
+name: Java CI (git-clone robust safe)
 on:
   push:
     branches: [ main ]
@@ -10,43 +10,64 @@ jobs:
       image: maven:3.9.6-eclipse-temurin-17
     env:
       REPO_URL: "http://giteahome.local/rubenss.leme/curso.git"
-      WORKDIR: "/workspace"
+      WORKDIR: "/workspace/rubenss.leme/curso"
     steps:
-      - name: Prepare environment & install git
+      - name: Prepare environment & install git/rsync
         run: |
           set -eux
-          # ensure workspace exists and is writable
-          mkdir -p "${WORKDIR}"
-          ls -ld "${WORKDIR}"
+          # workspace parent must exist (runner creates mount under /workspace)
+          mkdir -p "$(dirname "${WORKDIR}")"
+          ls -ld "$(dirname "${WORKDIR}")" || true
           apt-get update
-          apt-get install -y git
+          apt-get install -y git rsync
           git --version
+          rsync --version
 
-      - name: Clone or refresh repository (supports private via GITEA_TOKEN)
+      - name: Clone or refresh repository (safe for mounts) (supports private via GITEA_TOKEN)
         env:
           GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
         run: |
           set -eux
-          # If repo already has a .git, try fetch+reset to avoid reclone; else clean and clone.
-          if [ -d "${WORKDIR}/.git" ]; then
-            echo "Repository already present — fetching updates"
-            git -C "${WORKDIR}" fetch --all --prune
-            # Try checkout the branch ref if available, else reset to origin/main
-            git -C "${WORKDIR}" checkout --detach || true
-            git -C "${WORKDIR}" reset --hard origin/main || true
-          else
-            echo "Workspace empty — performing clone"
-            # ensure empty directory (remove leftover files)
-            rm -rf "${WORKDIR:?}/"*
-            if [ -n "${GITEA_TOKEN:-}" ]; then
-              # private repo via token (token as "password" - username left empty)
-              git clone "http://:${GITEA_TOKEN}@giteahome.local/rubenss.leme/curso.git" "${WORKDIR}"
-            else
-              git clone "${REPO_URL}" "${WORKDIR}"
-            fi
+          TARGET="${WORKDIR}"
+          TMPDIR=""
+          echo "TARGET=${TARGET}"
+          # If a git repo already exists in target -> fetch & reset
+          if [ -d "${TARGET}/.git" ]; then
+            echo "Git repo exists in target -> fetching and resetting to origin/main"
+            git -C "${TARGET}" fetch --all --prune
+            # attempt checkout to the branch/sha if available (fall back to origin/main)
+            git -C "${TARGET}" checkout --detach || true
+            git -C "${TARGET}" reset --hard origin/main || true
+            exit 0
           fi
-          # make workspace safe for git in container
-          git -C "${WORKDIR}" status || true
+
+          # If target exists but is not a git repo (likely a mount with files) -> clone to tmp and rsync
+          if [ -e "${TARGET}" ] && [ ! -d "${TARGET}/.git" ]; then
+            echo "Target exists but is not a git repo. Will clone into tempdir and rsync over target."
+            TMPDIR="$(mktemp -d)"
+            echo "Cloning into tempdir ${TMPDIR}..."
+            if [ -n "${GITEA_TOKEN:-}" ]; then
+              git clone "http://:${GITEA_TOKEN}@giteahome.local/rubenss.leme/curso.git" "${TMPDIR}"
+            else
+              git clone "${REPO_URL}" "${TMPDIR}"
+            fi
+            # If clone succeeded, sync into mountpoint (rsync handles updates safely)
+            echo "Syncing ${TMPDIR} -> ${TARGET} ..."
+            rsync -a --delete --exclude='.git' "${TMPDIR}/" "${TARGET}/"
+            # also sync .git separately (optional - do full copy)
+            rsync -a "${TMPDIR}/.git" "${TARGET}/.git" || true
+            rm -rf "${TMPDIR}"
+            exit 0
+          fi
+
+          # If target doesn't exist -> safe normal clone
+          echo "Target does not exist; performing normal clone."
+          mkdir -p "$(dirname "${TARGET}")"
+          if [ -n "${GITEA_TOKEN:-}" ]; then
+            git clone "http://:${GITEA_TOKEN}@giteahome.local/rubenss.leme/curso.git" "${TARGET}"
+          else
+            git clone "${REPO_URL}" "${TARGET}"
+          fi
 
       - name: Build (maven)
         run: |
