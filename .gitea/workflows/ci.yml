@@ -1,82 +1,18 @@
-name: Java CI (git-clone robust safe)
+# .gitea/workflows/test-host-resolve.yml
+name: Test Host Resolve
 on:
   push:
     branches: [ main ]
-
 jobs:
-  build:
-    runs-on: [docker, java]
+  test:
+    runs-on: [docker, linux]
     container:
-      image: maven:3.9.6-eclipse-temurin-17
-    env:
-      REPO_URL: "http://giteahome.local/rubenss.leme/curso.git"
-      WORKDIR: "/workspace/rubenss.leme/curso"
+      image: ghcr.io/catthehacker/ubuntu:act-latest
     steps:
-      - name: Prepare environment & install git/rsync
+      - name: ping giteahome
         run: |
-          set -eux
-          # workspace parent must exist (runner creates mount under /workspace)
-          mkdir -p "$(dirname "${WORKDIR}")"
-          ls -ld "$(dirname "${WORKDIR}")" || true
-          apt-get update
-          apt-get install -y git rsync
-          git --version
-          rsync --version
-
-      - name: Clone or refresh repository (safe for mounts) (supports private via GITEA_TOKEN)
-        env:
-          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
-        run: |
-          set -eux
-          TARGET="${WORKDIR}"
-          TMPDIR=""
-          echo "TARGET=${TARGET}"
-          # If a git repo already exists in target -> fetch & reset
-          if [ -d "${TARGET}/.git" ]; then
-            echo "Git repo exists in target -> fetching and resetting to origin/main"
-            git -C "${TARGET}" fetch --all --prune
-            # attempt checkout to the branch/sha if available (fall back to origin/main)
-            git -C "${TARGET}" checkout --detach || true
-            git -C "${TARGET}" reset --hard origin/main || true
-            exit 0
-          fi
-
-          # If target exists but is not a git repo (likely a mount with files) -> clone to tmp and rsync
-          if [ -e "${TARGET}" ] && [ ! -d "${TARGET}/.git" ]; then
-            echo "Target exists but is not a git repo. Will clone into tempdir and rsync over target."
-            TMPDIR="$(mktemp -d)"
-            echo "Cloning into tempdir ${TMPDIR}..."
-            if [ -n "${GITEA_TOKEN:-}" ]; then
-              git clone "http://:${GITEA_TOKEN}@giteahome.local/rubenss.leme/curso.git" "${TMPDIR}"
-            else
-              git clone "${REPO_URL}" "${TMPDIR}"
-            fi
-            # If clone succeeded, sync into mountpoint (rsync handles updates safely)
-            echo "Syncing ${TMPDIR} -> ${TARGET} ..."
-            rsync -a --delete --exclude='.git' "${TMPDIR}/" "${TARGET}/"
-            # also sync .git separately (optional - do full copy)
-            rsync -a "${TMPDIR}/.git" "${TARGET}/.git" || true
-            rm -rf "${TMPDIR}"
-            exit 0
-          fi
-
-          # If target doesn't exist -> safe normal clone
-          echo "Target does not exist; performing normal clone."
-          mkdir -p "$(dirname "${TARGET}")"
-          if [ -n "${GITEA_TOKEN:-}" ]; then
-            git clone "http://:${GITEA_TOKEN}@giteahome.local/rubenss.leme/curso.git" "${TARGET}"
-          else
-            git clone "${REPO_URL}" "${TARGET}"
-          fi
-
-      - name: Build (maven)
-        run: |
-          set -eux
-          cd "${WORKDIR}"
-          mvn -B -DskipTests clean package
-
-      - name: Run tests
-        run: |
-          set -eux
-          cd "${WORKDIR}"
-          mvn -B test
+          ping -c1 giteahome.local || true
+          echo "Try curl by name"
+          curl -sS -I http://giteahome.local:3000/ || true
+          echo "Try curl by IP"
+          curl -sS -I http://192.168.3.25:3000/ || true
