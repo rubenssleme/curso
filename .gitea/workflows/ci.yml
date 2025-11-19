@@ -9,7 +9,7 @@ jobs:
     container:
       image: maven:3.9.6-eclipse-temurin-17
     env:
-      REPO_URL: "http://giteahome.local/rubenss.leme/curso.git"
+      REPO_URL: "http://192.168.3.25/rubenss.leme/curso.git"
       WORKDIR: "/workspace/rubenss.leme/curso"
     steps:
       - name: Prepare environment & install git/rsync
