@@ -42,7 +42,10 @@ public class Usuario implements Serializable {
 		this.senha = senha;
 	}
 
-	public Long getId() {
+    public Usuario(long l, String user1, String mail) {
+    }
+
+    public Long getId() {
 		return id;
 	}
 
