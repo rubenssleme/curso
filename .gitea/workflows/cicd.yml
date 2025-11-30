@@ -93,53 +93,53 @@ jobs:
           set -eux
           cd "${WORKDIR}"
           mvn -B test
-  deploy: null
-  needs: build
-  runs-on:
-    - docker
-    - java
-  container:
-    image: 'alpine:3.18'
-  if: '${{ success() }}'
-  steps:
-    - name: Install ssh and rsync
-      run: |
-        apk add --no-cache openssh rsync bash curl
-    - name: Prepare artifact
-      run: |
-        set -eux
-        mkdir -p /tmp/deploy
-        # use WORKDIR from build (adjust if necessary)
-        if [ -d "${WORKDIR}/target" ]; then
-          cp ${WORKDIR}/target/*.jar /tmp/deploy/app.jar
-        else
-          echo "Artifact not found at ${WORKDIR}/target. Listing /workspace:"
-          ls -la /workspace || true
-          ls -la . || true
-          exit 1
-        fi
-        ls -l /tmp/deploy
-    - name: Copy artifact to runnerBackend (rsync)
-      env:
-        SSH_PRIVATE_KEY: '${{ secrets.SSH_PRIVATE_KEY }}'
-      run: |
-        set -eux
-        mkdir -p ~/.ssh
-        printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H 192.168.3.95 >> ~/.ssh/known_hosts
-        rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
-          /tmp/deploy/app.jar deployuser@192.168.3.95:/tmp/app_to_deploy.jar
-    - name: Trigger remote deploy script
-      env:
-        SSH_PRIVATE_KEY: '${{ secrets.SSH_PRIVATE_KEY }}'
-      run: >
-        set -eux
-
-        printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-
-        chmod 600 ~/.ssh/id_rsa
-
-        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa deployuser@192.168.3.95
-        \
-          "bash /home/deploy/apps/curso/deploy.sh /tmp/app_to_deploy.jar"
+#  deploy: null
+#  needs: build
+#  runs-on:
+#    - docker
+#    - java
+#  container:
+#    image: 'alpine:3.18'
+#  if: '${{ success() }}'
+#  steps:
+#    - name: Install ssh and rsync
+#      run: |
+#        apk add --no-cache openssh rsync bash curl
+#    - name: Prepare artifact
+#      run: |
+#        set -eux
+#        mkdir -p /tmp/deploy
+#        # use WORKDIR from build (adjust if necessary)
+#        if [ -d "${WORKDIR}/target" ]; then
+#          cp ${WORKDIR}/target/*.jar /tmp/deploy/app.jar
+#        else
+#          echo "Artifact not found at ${WORKDIR}/target. Listing /workspace:"
+#          ls -la /workspace || true
+#          ls -la . || true
+#          exit 1
+#        fi
+#        ls -l /tmp/deploy
+#    - name: Copy artifact to runnerBackend (rsync)
+#      env:
+#        SSH_PRIVATE_KEY: '${{ secrets.SSH_PRIVATE_KEY }}'
+#      run: |
+#        set -eux
+#        mkdir -p ~/.ssh
+#        printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+#        chmod 600 ~/.ssh/id_rsa
+#        ssh-keyscan -H 192.168.3.95 >> ~/.ssh/known_hosts
+#        rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
+#          /tmp/deploy/app.jar deployuser@192.168.3.95:/tmp/app_to_deploy.jar
+#    - name: Trigger remote deploy script
+#      env:
+#        SSH_PRIVATE_KEY: '${{ secrets.SSH_PRIVATE_KEY }}'
+#      run: >
+#        set -eux
+#
+#        printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+#
+#        chmod 600 ~/.ssh/id_rsa
+#
+#        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa deployuser@192.168.3.95
+#        \
+#          "bash /home/deploy/apps/curso/deploy.sh /tmp/app_to_deploy.jar"

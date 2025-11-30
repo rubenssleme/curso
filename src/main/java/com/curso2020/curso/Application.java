@@ -7,7 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
  * Ponto de entrada da aplicação Spring Boot.
- * novo
+ * novo teste
  */
 @SpringBootApplication
 public class Application {
