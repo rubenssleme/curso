@@ -22,25 +22,29 @@ import com.curso2020.curso.service.CategoriaServico;
 public class CategoriaRecurso {
 
 	@Autowired
-	private CategoriaServico servico;
+	private CategoriaServico categoriaServico;
+
+    public CategoriaRecurso(CategoriaServico servico) {
+        this.categoriaServico = servico;
+    }
 
 
-	@GetMapping
+    @GetMapping
 	public ResponseEntity<List<Categoria>> findAll() {
-		List<Categoria> list = servico.findAll();
+		List<Categoria> list = categoriaServico.findAll();
 		return ResponseEntity.ok().body(list);
 	}
 
 
 	@GetMapping(value = "/{id}")
 	public ResponseEntity<Categoria> findById(@PathVariable Long id) {
-		Categoria obj = servico.findById(id);
+		Categoria obj = categoriaServico.findById(id);
 		return ResponseEntity.ok().body(obj);
 	}
 
 	@PostMapping
 	public ResponseEntity<Categoria> insert(@RequestBody Categoria obj) {
-		obj = servico.insert(obj);
+		obj = categoriaServico.insert(obj);
 		URI uri = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
 				.buildAndExpand(obj.getId()).toUri();
 		return ResponseEntity.created(uri).body(obj);
